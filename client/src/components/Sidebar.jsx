@@ -1,7 +1,7 @@
 import { Protect, useClerk, useUser } from "@clerk/clerk-react"
 import { Hash, House, SquarePen, Image, Eraser, Scissors, FileText, Users, LogOut } from "lucide-react";
 import { NavLink } from "react-router-dom";
-
+  
 const navItems = [
     { to: '/ai', label: 'Dashboard', Icon: House },
     { to: '/ai/write-article', label: 'Writer Article', Icon: SquarePen },
