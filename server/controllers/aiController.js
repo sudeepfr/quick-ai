@@ -11,6 +11,48 @@ const AI = new OpenAI({
     baseURL: "https://generativelanguage.googleapis.com/v1beta/openai/"
 });
 
+const GEMINI_TEXT_MODEL = "gemini-3.5-flash";
+
+const getAiErrorMessage = (error) => {
+    const providerMessage =
+        error?.response?.data?.error?.message ||
+        error?.error?.message ||
+        error?.message;
+
+    if (error?.status === 429 || error?.response?.status === 429) {
+        if (!providerMessage || providerMessage.toLowerCase().includes('no body')) {
+            return "Gemini rate limit or quota reached. Please wait and try again, or check your Gemini API key quota/billing in Google AI Studio.";
+        }
+
+        return providerMessage;
+    }
+
+    if (error?.status === 404 || error?.response?.status === 404) {
+        if (!providerMessage || providerMessage.toLowerCase().includes('no body')) {
+            return `Gemini model or endpoint was not found. Check that your API key can access ${GEMINI_TEXT_MODEL}.`;
+        }
+
+        return providerMessage;
+    }
+
+    return providerMessage || "AI text generation failed. Please try again.";
+}
+
+const handleAiError = (res, error) => {
+    const status = error?.status || error?.response?.status || 500;
+    const message = getAiErrorMessage(error);
+
+    console.error('AI provider error:', {
+        status,
+        message,
+        providerMessage: error?.message,
+        type: error?.error?.type,
+        code: error?.error?.code,
+    });
+
+    return res.status(status).json({ success: false, message });
+}
+
 
 
 // For generating the article according to length
@@ -27,7 +69,7 @@ const generateArticle = async (req, res) => {
         }
 
         const response = await AI.chat.completions.create({
-            model: "gemini-2.0-flash",
+            model:"gemini-3.5-flash",
             messages: [
                 {
                     role: "user",
@@ -55,8 +97,7 @@ const generateArticle = async (req, res) => {
         res.json({ success: true, content })
 
     } catch (e) {
-        console.log(e.message);
-        res.json({ success: false, message: e.message })
+        return handleAiError(res, e);
     }
 }
 
@@ -75,7 +116,7 @@ const generateBlogTitle = async (req, res) => {
         }
 
         const response = await AI.chat.completions.create({
-            model: "gemini-2.0-flash",
+            model: "gemini-3.5-flash",
             messages: [
                 {
                     role: "user",
@@ -89,7 +130,7 @@ const generateBlogTitle = async (req, res) => {
         const content = response.choices[0].message.content;
 
         await sql` INSERT INTO creations (user_id, prompt,content,type ) 
-        VALUES (${userId},${prompt},${content},'article')`;
+        VALUES (${userId},${prompt},${content},'blog-title')`;
 
         if (plan !== 'premium') {
             await clerkClient.users.updateUserMetadata(userId, {
@@ -102,8 +143,7 @@ const generateBlogTitle = async (req, res) => {
         res.json({ success: true, content })
 
     } catch (e) {
-        console.log(e.message);
-        res.json({ success: false, message: e.message })
+        return handleAiError(res, e);
     }
 }
 
@@ -224,7 +264,7 @@ const resumeReview = async (req, res) => {
         }
 
         if (resume.size > 5 * 1024 * 1024) {
-            return res.json({ success: false, messsage: "Resume file size exceeds allowed size (5MB)." })
+            return res.json({ success: false, message: "Resume file size exceeds allowed size (5MB)." })
         }
 
         // parsing the pdf into text fo further opration
@@ -234,7 +274,7 @@ const resumeReview = async (req, res) => {
         const prompt = `Review the following resume and provide constructive feedback on its strengths,weekness,and area for improvment. Resume Content:\n\n${pdfData.text}`
 
         const response = await AI.chat.completions.create({
-            model: "gemini-2.0-flash",
+            model: "gemini-3.5-flash",
             messages: [
                 {
                     role: "user",
@@ -254,8 +294,7 @@ const resumeReview = async (req, res) => {
 
 
     } catch (e) {
-        console.log(e.message);
-        res.json({ success: false, message: e.message })
+        return handleAiError(res, e);
     }
 }
 

@@ -24,6 +24,6 @@ export const auth =async(req,res,next)=>{
       next();
 
      }catch(e){
-         res.json({success:false,message:error.message});
+         res.json({success:false,message:e.message});
      }
 }
